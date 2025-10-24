@@ -9,5 +9,5 @@ from hydra.plugins.search_path_plugin import SearchPathPlugin
 
 class VisslPlugin(SearchPathPlugin):
     def manipulate_search_path(self, search_path: ConfigSearchPath) -> None:
-        search_path.prepend(provider="vissl", path="pkg://configs")
-        search_path.prepend(provider="vissl", path="file://configs")
+        search_path.prepend(provider="ssl_feature_regularization", path="pkg://configs")
+        search_path.prepend(provider="ssl_feature_regularization", path="file://configs")
