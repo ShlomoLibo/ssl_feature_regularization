@@ -63,6 +63,58 @@ class SimclrInfoNCELoss(ClassyLoss):
         return pprint.pformat(repr_dict, indent=2)
 
 
+@register_loss("simclr_regularized_features_loss")
+class SimclrRegularizedFeaturesLoss(ClassyLoss):
+    """
+    This is the loss I propose, with regularized features instead of normalization.
+
+    Config params:
+        temperature (float): the temperature to be applied on the logits
+        buffer_params:
+            world_size (int): total number of trainers in training
+            embedding_dim (int): output dimensions of the features projects
+            effective_batch_size (int): total batch size used (includes positives)
+            p (float): p-norm to use for regularization
+            lambda_ (float): regularization coefficient
+            q (int): exponent to use in the denominator for regularization 
+    """
+
+    def __init__(self, loss_config: AttrDict, device: str = "gpu"):
+        super(SimclrRegularizedFeaturesLoss, self).__init__()
+
+        self.loss_config = loss_config
+        # loss constants
+        self.temperature = self.loss_config.temperature
+        self.buffer_params = self.loss_config.buffer_params
+        self.info_criterion = SimclrInfoNCECriterion(
+            self.buffer_params, self.temperature
+        )
+        self.p = self.loss_config.p
+        self.lambda_ = self.loss_config.lambda_
+        self.q = self.loss_config.q
+
+    @classmethod
+    def from_config(cls, loss_config: AttrDict):
+        """
+        Instantiates SimclrRegularizedFeaturesLoss from configuration.
+
+        Args:
+            loss_config: configuration for the loss
+
+        Returns:
+            SimclrRegularizedFeaturesLoss instance.
+        """
+        return cls(loss_config)
+
+    def forward(self, output, target):
+        loss = self.info_criterion(output) + self.lambda_ * torch.norm(output, p=self.p).sum() / (output.shape[0] ** self.q)
+        return loss
+
+    def __repr__(self):
+        repr_dict = {"name": self._get_name(), "info_average": self.info_criterion}
+        return pprint.pformat(repr_dict, indent=2)
+
+
 class SimclrInfoNCECriterion(nn.Module):
     """
     The criterion corresponding to the SimCLR loss as defined in the paper
